@@ -130,7 +130,7 @@ echo "postgres://user:password@host:5432/memos" | docker secret create memos_dsn
 docker run -d \
   --name memos \
   -p 5230:5230 \
-  -v ~/.memos:/var/opt/memos \
+  -v ~/.memos:/var/opt/memos \b
   -e MEMOS_DRIVER=postgres \
   -e MEMOS_DSN_FILE=/run/secrets/memos_dsn \
   --secret memos_dsn \
