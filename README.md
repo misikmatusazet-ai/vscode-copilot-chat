@@ -1,4 +1,4 @@
-> [!IMPORTANT]
+git clone https://github.com/usememos/memos.git> [!IMPORTANT]
 > This project has been moved into the main VS Code repository and this repository is now archived.
 >
 > Active development continues at:
