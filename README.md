@@ -1,3 +1,168 @@
+# Docker
+URL: https://usememos.com/docs/deploy/docker
+
+Docker is the simplest production-style deployment for a single Memos instance.
+
+## Quick start [#quick-start]
+
+```bash
+docker run -d \
+  --name memos \
+  --restart unless-stopped \
+  -p 5230:5230 \
+  -v ~/.memos:/var/opt/memos \
+  neosmemo/memos:stable
+```
+
+* The container listens on port `5230`.
+* Memos stores persistent data in `/var/opt/memos` inside the container.
+* The host path `~/.memos` will contain the SQLite database and local assets.
+
+## Image tags [#image-tags]
+
+Common tag choices:
+
+* `stable`: safest default for production
+* versioned tags such as `0.31.0`: fully pinned deployment
+* branch-like tags such as `0.30`: latest patch in that line
+* `latest`: development-oriented and less suitable for production
+
+## Platform support [#platform-support]
+
+The image ships multi-arch manifests and automatically selects the right variant:
+
+* `linux/amd64` — x86\_64 processors
+* `linux/arm64` — ARM 64-bit (Apple Silicon, Raspberry Pi 4+)
+* `linux/arm/v7` — ARM 32-bit (Raspberry Pi 2/3)
+
+## Container user [#container-user]
+
+Memos runs as a non-root user inside the container:
+
+* UID `10001`, GID `10001`, username `nonroot`
+* The entrypoint script automatically fixes ownership of mounted volumes
+
+If your host volume requires a different UID or GID, override them:
+
+```bash
+docker run -d \
+  --name memos \
+  -p 5230:5230 \
+  -v ~/.memos:/var/opt/memos \
+  -e MEMOS_UID=1000 \
+  -e MEMOS_GID=1000 \
+  neosmemo/memos:stable
+```
+
+## Environment variables [#environment-variables]
+
+All `MEMOS_*` variables correspond directly to command-line flags. Common ones:
+
+| Variable                                  | Default          | Purpose                                                                         |
+| ----------------------------------------- | ---------------- | ------------------------------------------------------------------------------- |
+| `MEMOS_PORT`                              | `8081`           | HTTP listen port (image default: `5230`)                                        |
+| `MEMOS_ADDR`                              | \`\`             | Bind address (empty = all interfaces)                                           |
+| `MEMOS_DATA`                              | `/var/opt/memos` | Data directory                                                                  |
+| `MEMOS_DRIVER`                            | `sqlite`         | Database backend                                                                |
+| `MEMOS_DSN`                               | auto             | Database connection string                                                      |
+| `MEMOS_INSTANCE_URL`                      | \`\`             | Canonical external URL; independent of access policy                            |
+| `MEMOS_DEMO`                              | `false`          | Demo mode                                                                       |
+| `MEMOS_WEBHOOK_PRIVATE_NETWORK_ALLOWLIST` | empty            | Exact hostnames, IP addresses, or CIDRs allowed as private webhook destinations |
+| `MEMOS_ALLOW_PRIVATE_WEBHOOKS`            | `false`          | Deprecated blanket exception for private webhook destinations                   |
+| `MEMOS_LOG_LEVEL`                         | `info`           | Log verbosity (`debug`, `info`, `warn`, `error`)                                |
+
+Typical example:
+
+```bash
+docker run -d \
+  --name memos \
+  --restart unless-stopped \
+  -p 5230:5230 \
+  -v ~/.memos:/var/opt/memos \
+  -e MEMOS_PORT=5230 \
+  -e MEMOS_DRIVER=sqlite \
+  -e MEMOS_INSTANCE_URL=https://memos.example.com \
+  neosmemo/memos:stable
+```
+
+On a fresh instance, the quick-start command initializes private access because it omits `MEMOS_INSTANCE_URL`. A configured URL initializes public access only when the access setting does not yet exist. In 0.31, select the desired `ACCESS` policy in instance settings or [deployment configuration](/docs/configuration/deployment-configuration#access-policy); changing the URL of an existing instance does not change that policy.
+
+## External databases [#external-databases]
+
+SQLite is the default and works well for a single-node deployment. If you need MySQL or PostgreSQL, provide:
+
+* `MEMOS_DRIVER=mysql` or `MEMOS_DRIVER=postgres`
+* `MEMOS_DSN` with the appropriate connection string
+
+MySQL example:
+
+```bash
+docker run -d \
+  --name memos \
+  -p 5230:5230 \
+  -v ~/.memos:/var/opt/memos \
+  -e MEMOS_DRIVER=mysql \
+  -e MEMOS_DSN="user:password@tcp(mysql-host:3306)/memos" \
+  neosmemo/memos:stable
+```
+
+PostgreSQL example:
+
+```bash
+docker run -d \
+  --name memos \
+  -p 5230:5230 \
+  -v ~/.memos:/var/opt/memos \
+  -e MEMOS_DRIVER=postgres \
+  -e MEMOS_DSN="postgres://user:password@postgres-host:5432/memos?sslmode=disable" \
+  neosmemo/memos:stable
+```
+
+When using an external database, the mounted volume is still relevant for local assets and instance data.
+
+## Secrets with `_FILE` suffix [#secrets-with-_file-suffix]
+
+The entrypoint script supports `*_FILE` variable suffixes so you can pass credentials via Docker secrets instead of plain environment variables:
+
+```bash
+echo "postgres://user:password@host:5432/memos" | docker secret create memos_dsn -
+
+docker run -d \
+  --name memos \
+  -p 5230:5230 \
+  -v ~/.memos:/var/opt/memos \
+  -e MEMOS_DRIVER=postgres \
+  -e MEMOS_DSN_FILE=/run/secrets/memos_dsn \
+  --secret memos_dsn \
+  neosmemo/memos:stable
+```
+
+This works for any `MEMOS_*` variable.
+
+## Container management [#container-management]
+
+```bash
+docker logs -f memos
+docker stop memos
+docker start memos
+docker restart memos
+```
+
+## Upgrades [#upgrades]
+
+```bash
+docker pull neosmemo/memos:stable
+docker stop memos
+docker rm memos
+docker run -d \
+  --name memos \
+  --restart unless-stopped \
+  -p 5230:5230 \
+  -v ~/.memos:/var/opt/memos \
+  neosmemo/memos:stable
+```
+
+Because data is stored in the mounted volume, replacing the container is usually safe as long as you keep the same data directory and have backups.
 git clone https://github.com/usememos/memos.git> [!IMPORTANT]
 > This project has been moved into the main VS Code repository and this repository is now archived.
 >
